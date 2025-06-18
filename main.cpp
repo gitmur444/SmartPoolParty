@@ -23,6 +23,8 @@ class pool {
     };
 
 public:
+
+
     explicit pool(size_t initial_capacity)
         : block_size(initial_capacity), count(0), total_capacity(initial_capacity) {
         add_block(block_size);
@@ -73,6 +75,7 @@ public:
     size_t size() const { return count; }
     size_t capacity() const { return total_capacity; }
 public:
+
     void erase(size_t idx) {
         if (idx >= object_ptrs.size() || !object_ptrs[idx]) throw std::out_of_range("Index out of range or already deleted");
         // Найти блок и offset
@@ -100,6 +103,13 @@ public:
     }
     bool is_alive(size_t idx) const {
         return idx < object_ptrs.size() && object_ptrs[idx];
+    }
+    // Итерация по живым объектам без классов
+    template<typename F>
+    void for_each_alive(F&& f) {
+        for (size_t i = 0; i < object_ptrs.size(); ++i) {
+            if (object_ptrs[i]) f(*reinterpret_cast<T*>(object_ptrs[i]), i);
+        }
     }
 private:
     struct BlockInfo {
@@ -197,8 +207,11 @@ int main() {
     std::cout << "Checksum: " << checksum << " (ignore, prevents optimization)\n";
     print_memory_usage();
     std::cout << "Now erasing all objects...\n";
-    for (size_t i = 0; i < N; ++i) {
-        if (p.is_alive(i)) p.erase(i);
+    // Удалить все живые объекты через for_each_alive
+    std::vector<size_t> to_erase;
+    p.for_each_alive([&](MyClass&, size_t idx){ to_erase.push_back(idx); });
+    for (size_t idx : to_erase) {
+        p.erase(idx);
     }
     std::cout << "After erase and block release:\n";
     print_memory_usage();
